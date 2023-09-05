@@ -5,7 +5,10 @@ import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 import study.datajpa.entity.Member;
 
-@Repository
+import java.util.List;
+import java.util.Optional;
+
+@Repository     //1. 스프링의 컴포넌트스캔 2. Jpa의 예외를 공통예외로 변환
 public class MemberJpaRepository {
 
     @PersistenceContext
@@ -16,7 +19,43 @@ public class MemberJpaRepository {
         return member;
     }
 
-    public Member find(Long id) {
-        return em.find(Member.class, id);
+    public void delete(Member member) { em.remove(member); }
+
+    public List<Member> findAll() {
+        return em.createQuery("select m from Member m", Member.class)   //Jpql
+                .getResultList();
+    }
+
+    public Optional<Member> findById(Long id) {
+        Member member = em.find(Member.class, id);
+        return Optional.ofNullable(member);
+    }
+
+    public long count() {
+        return em.createQuery("select count(m) from Member m", Long.class)
+                .getSingleResult();     //결과를 하나만 반환
+    }
+
+    public Member find(Long id) { return em.find(Member.class, id); }
+
+    public List<Member> findByUsernameAndAgeGreaterThen(String username, int age) {
+        return em.createQuery("select m from Member m where m.username = :username and m.age > :age")
+                .setParameter("username", username)
+                .setParameter("age", age)
+                .getResultList();
+    }
+
+    public List<Member> findByPage(int age, int offset, int limit) {
+        return em.createQuery("select m from Member m where m.age = :age order by m.username desc")
+                .setParameter("age", age)
+                .setFirstResult(offset)
+                .setMaxResults(limit)
+                .getResultList();
+    }
+
+    public long totalCount(int age) {
+        return em.createQuery("select count(m) from Member m where m.age = :age", Long.class)
+                .setParameter("age", age)
+                .getSingleResult();
     }
 }
