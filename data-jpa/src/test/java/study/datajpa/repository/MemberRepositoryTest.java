@@ -1,5 +1,7 @@
 package study.datajpa.repository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -9,9 +11,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.annotation.Rollback;
+import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
+import study.datajpa.entity.Team;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,8 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Rollback(false)
 public class MemberRepositoryTest {
 
-    @Autowired
-    MemberRepository memberRepository;
+    @Autowired MemberRepository memberRepository;
+    @Autowired TeamRepository teamRepository;
+    @PersistenceContext
+    EntityManager em;    //영속성 컨텍스트
 
     @Test
     public void MemberRepositoryTest() {
@@ -105,12 +112,88 @@ public class MemberRepositoryTest {
         PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
         Page<Member> page = memberRepository.findByAge(10, pageRequest);
 
+        Page<MemberDto> toMap = page.map(m -> new MemberDto(m.getId(), m.getUsername(), null));
 
         //then
-        long totalCount = memberRepository.totalCount(age);
-        assertThat(members.size()).isEqualTo(3);
-        assertThat(totalCount).isEqualTo(5);
+        List<Member> content = page.getContent();
 
-
+        assertThat(content.size()).isEqualTo(3);    //조회된 데이터
+        assertThat(page.getTotalElements()).isEqualTo(5);   //조회된 데이터 수
+        assertThat(page.getNumber()).isEqualTo(0);  //페이지 번호, 번호는 0부터
+        assertThat(page.getTotalPages()).isEqualTo(2);  //전체 페이지 번호, 0페이지, 1페이지 총 2페이지
+        assertThat(page.isFirst()).isTrue();    //첫번째 항목인가?
+        assertThat(page.hasNext()).isTrue();    //다음 페이지가 있는가?
     }
+
+    @Test
+    public void bulkUpdate() {
+        //given
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 19));
+        memberRepository.save(new Member("member3", 20));
+        memberRepository.save(new Member("member4", 21));
+        memberRepository.save(new Member("member5", 40));
+
+        //when
+        int resultCount = memberRepository.bulkAgePlus(20);
+        em.flush();
+        em.clear();
+
+        List<Member> result = memberRepository.findByUsername("member5");   //깔끔한 상태의 DB 조회 가능
+        Member member5 = result.get(0);
+        System.out.println("member5 =" + member5);
+
+        //then
+        assertThat(resultCount).isEqualTo(3);
+    }
+
+    @Test
+    public void findMemberLazy() {
+        //given
+        //member1 -> teamA
+        //member2 -> teamB
+
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+        Member member1 = new Member("member1", 10, teamA);
+        Member member2 = new Member("member2", 10, teamB);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        em.flush();
+        em.clear();
+
+        //when
+        //select Member
+        List<Member> members = memberRepository.findEntityGraphByUsername("member1");
+
+        for (Member member : members) {
+            System.out.println("member = " + member.getUsername());
+            System.out.println("member.teamClass = " + member.getTeam().getClass());
+            System.out.println("member.team = " + member.getTeam().getName());
+        }
+    }
+
+    @Test
+    public void queryHint() {
+        //given
+        Member member1 = memberRepository.save(new Member("member1", 10));
+        em.flush();     //일반적으로 커밋할 때 flush 하게 되지만, 강제 flush 하면... 1차 캐시에 있는걸 db에 넣음.
+        em.clear();     //영속성 컨텍스트가 다 날라감. 따라서 1차 캐시가 없기 때문에 db에 있는걸 조회하게 됨.
+
+        //when
+        Member findMember = memberRepository.findReadOnlyByUsername("member1");
+        findMember.setUsername("member2");
+
+
+        em.flush();     //변경감지(dirty checking) 원본이 있어야하기 때문에 메모리를 먹음.
+    }
+
+    @Test
+    public void callCustom() {
+        List<Member> result = memberRepository.findMemberCustom();
+    }
+
 }
