@@ -11,8 +11,9 @@ import study.datajpa.repository.MemberRepository;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+
 @SpringBootTest
-@Rollback(value = false)
+@Rollback(false)
 @Transactional
 class MemberTest {
 
@@ -39,7 +40,9 @@ class MemberTest {
 
         //then
         System.out.println("findMember.getCreatedDate() = " + findMember.getCreatedDate());
-        System.out.println("findMember.getUpdatedDate() = " + findMember.getUpdatedDate());
+        System.out.println("findMember.getLastModifiedDate = " + findMember.getLastModifiedDate());
+        System.out.println("findMember.createdBy = " + findMember.getCreatedBy());
+        System.out.println("findMember.updatedBy = " + findMember.getLastModifiedBy());
 
 
     }

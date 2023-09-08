@@ -8,7 +8,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString(of = {"id", "username", "age"}) //객체 찍을 때 출력됨.
 @NamedEntityGraph(name = "Member.all", attributeNodes = @NamedAttributeNode("team"))
-public class Member extends JpaBaseEntity {
+public class Member extends BaseEntity {
 
     @Id @GeneratedValue
     @Column(name = "member_id")
